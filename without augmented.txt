@@ -1,0 +1,6 @@
+!pip install roboflow
+
+from roboflow import Roboflow
+rf = Roboflow(api_key="JOOy8ib1kct8yzsUUKjz")
+project = rf.workspace("ilhamrafi").project("deteksi-plat-nomor-kendaraan-ag6gj")
+dataset = project.version(1).download("yolov5")
