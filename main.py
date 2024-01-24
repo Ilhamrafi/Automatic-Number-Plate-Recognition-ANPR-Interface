@@ -1,239 +1,273 @@
 # main.py
-from streamlit_option_menu import option_menu
 import streamlit as st
-import os
 from PIL import Image
 import pandas as pd
+import io
 import webbrowser
-import requests
+import hydralit_components as hc
 from streamlit_lottie import st_lottie
 from predictions import DeteksiObjek
+from database import KoneksiDB
+from utilities import Utilities
 
-# Buat instance dari DeteksiObjek
-deteksi_objek = DeteksiObjek()
-
-# Fungsi untuk mengambil data animasi dari URL
-def load_lottie_url(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-
-# Fungsi untuk mendapatkan path folder berdasarkan pilihan pengguna
-def get_folder_path(selected_folder):
-    base_folder = "C:/Users/ASUS/OneDrive/Dokumen/Informatika Semester 7/Pengembangan Aplikasi AI/Deteksi_PlatNomorKendaraan/dataset nomor kendaraan"  # Ganti dengan path folder utama
-    return os.path.join(base_folder, selected_folder)
-
-# Fungsi untuk mendapatkan nama-nama folder
-def get_folder_names():
-    return ['K1', 'K2', 'K3', 'K4']
-
-# Fungsi untuk mendapatkan data nama file dan format dalam tabel
-def get_table_data(folder_path, valid_image_extensions):
-    image_files = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file)) and any(file.lower().endswith(ext) for ext in valid_image_extensions)]
-    table_data = {"Nama File": [file.split(".")[0] for file in image_files],
-                  "Format": [file.split(".")[-1] for file in image_files]}
-    return pd.DataFrame(table_data)
-
-# Fungsi untuk mendapatkan data nama file dan format dalam tabel
-def get_table_data(folder_path, valid_image_extensions):
-    image_files = [file for file in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, file)) and any(file.lower().endswith(ext) for ext in valid_image_extensions)]
-    table_data = {"Nama File": [file.split(".")[0] for file in image_files],
-                  "Format": [file.split(".")[-1] for file in image_files]}
-    return pd.DataFrame(table_data)
-
-# Opsi di sidebar
-with st.sidebar:
-    selected = option_menu(
-        "Menu",
-        ['Upload Gambar', 'Update dan Delete', 'Dataset Plat Kendaraan',  'Training', 'Prediction' ],
-        icons=['cloud-upload', 'database-fill-check', 'images',  'gear', 'kanban' ],
-        menu_icon="cast",
-        default_index=0,
-        styles={
-            "container": {"padding": "5!important", "padding-top": "0px"},
-            "nav-link": {"font-size": "16px", "text-align": "left", "margin": "5px"},
-        }
+def setup_page_configuration():
+    st.set_page_config(
+        page_title='PLAT-VISION',
+        page_icon="🎮",
+        layout='wide',
+        initial_sidebar_state='auto',
     )
 
-# Konten utama berdasarkan opsi yang dipilih
-if selected == "Upload Gambar":
-    st.title("Upload Gambar Citra Kendaraan")
-    uploaded_image = st.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png"])
+def setup_navigation_bar():
+    menu_data = [
+        {'icon': "📇", 'label': "Upload Gambar"},
+        {'icon': "💾", 'label': "Database"},
+        {'icon': "️🖼️", 'label': "Dataset Plat Kendaraan"},
+        {'icon': "🚀", 'label': "Training"},
+        {'icon': "🔮", 'label': "Prediction"},
+    ]
 
-    # Pilihan folder
-    selected_folder = st.selectbox("Pilih Folder", get_folder_names())
+    over_theme = {
+        'txc_inactive': '#FFFFFF',  # Ganti warna teks non-aktif (putih pada contoh ini)
+        'txc_active': '#000000',    # Ganti warna teks aktif (biru pada contoh ini)
+        'menu_background': '#2C3E50',  # Warna latar belakang menu
+        'option_active': '#E74C3C',  # Warna opsi aktif (gunakan jika diperlukan)
+        'font_family': 'Montserrat, sans-serif',  # Jenis huruf yang digunakan
+    }
 
-    # Input untuk nama file
-    default_file_name = uploaded_image.name.split(".")[0] if uploaded_image else ""
+    menu_id = hc.nav_bar(
+        menu_definition=menu_data,
+        override_theme=over_theme,
+        home_name='Home',
+        hide_streamlit_markers=False,
+        sticky_nav=True,
+        sticky_mode='pinned',
+    )
+
+    return menu_id
+
+# Buat instance dari DeteksiObjek dan KoneksiDB
+deteksi_objek = DeteksiObjek()
+koneksi_db = KoneksiDB()
+
+import streamlit as st
+
+def handle_home_menu():
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Selamat Datang di PLAT-VISION</h1>
+        """,
+        unsafe_allow_html=True
+    )    
+
+    st.info("Selamat datang di PLAT-VISION, solusi terdepan dalam pengenalan plat nomor kendaraan yang didukung oleh kecerdasan buatan. Aplikasi ini membawa kemudahan dalam mendeteksi dan mengidentifikasi plat nomor kendaraan secara cepat dan akurat. Dikembangkan untuk mendeteksi dan mengenali plat kendaraan secara otomatis, PLAT-VISION memanfaatkan model YOLOv5 untuk deteksi dan EasyOCR untuk pembacaan karakter, sehingga dapat dengan akurat menentukan lokasi plat nomor pada gambar dan membaca karakter-karakter pada plat nomor tersebut.")
+
+    st.markdown('<br>', unsafe_allow_html=True)
+
+    st.markdown("<h2 style='text-align: center; color: #007BFF;'>Fitur-fitur yang ada di aplikasi ini : </h2>", unsafe_allow_html=True)
+
+    col_logo, col_text = st.columns([2, 3])
+
+    col_logo.image("./resources/classroom.png", width=100, use_column_width='always')
+
+    with col_text:
+        st.info("Aplikasi ini memiliki beberapa fitur utama yang memungkinkan pengguna untuk mengelola dan menganalisis data terkait plat kendaraan. Pertama adalah fitur Upload Citra Kendaraan memungkinkan pengguna dengan mudah mengunggah gambar kendaraan ke dalam aplikasi, memberikan fleksibilitas dalam menentukan folder penyimpanan dan menamai file. Dengan menampilkan preview gambar, fitur ini menyederhanakan proses pengelolaan dataset gambar kendaraan, memberikan pengguna kenyamanan dalam menyimpan dan mengelola informasi visual terkait kendaraan.")
+
+    with col_text:
+        st.info("Fitur Database Citra Kendaraan, di mana pengguna dapat memilih folder untuk melakukan update atau delete terhadap gambar. Informasi gambar yang ada dalam database ditampilkan dalam tabel, dan pengguna dapat memilih aksi yang diinginkan, baik itu update dengan memberikan nama file baru atau menghapus gambar.")
+
+
+    with col_text:
+        st.info("Fitur selanjutnya adalah Dataset Plat Kendaraan, yang memberikan gambaran tentang jumlah citra dalam setiap folder dataset seperti Train, Valid, Test, dan Data Baru yang belum dilakukan labelling. Pengguna dapat memilih folder dataset untuk melihat citra yang ada dalam bentuk tabel.")
+
+    with col_text:
+        st.info("Bagian Training Citra Kendaraan memungkinkan pengguna untuk memulai proses training dengan menekan tombol yang disediakan. Selama proses training, aplikasi menampilkan animasi lottie yang memberikan indikasi bahwa training sedang berlangsung. Pengguna juga diberikan link untuk beralih ke Google Colab guna memantau atau mengelola proses training lebih lanjut.")
+
+    with col_text:
+        st.info("Terakhir, terdapat fitur Prediksi Plat Nomor Kendaraan, di mana pengguna dapat mengunggah gambar untuk diprediksi. Setelah mengunggah gambar, pengguna dapat memulai proses prediksi dengan menekan tombol yang tersedia. Hasil prediksi, bersama dengan citra yang telah diproses sebelumnya, ditampilkan dengan rinci. Selain itu, aplikasi juga memberikan hasil pembacaan karakter pada plat nomor sebagai bagian dari output prediksi.")
+
+def handle_upload_menu():
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Upload Citra Kendaraan</h1>
+        """,
+        unsafe_allow_html=True
+    )    
+
+    uploaded_images = st.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+    selected_folder = st.selectbox("Pilih Folder", Utilities.get_folder_names())
+    default_file_name = ""
+
+    if uploaded_images:
+        default_file_name = uploaded_images[0].name.split(".")[0]
+
     file_name = st.text_input("Nama File (tanpa ekstensi)", default_file_name)
 
-    if uploaded_image:
-        st.image(uploaded_image, caption="Gambar yang Diunggah", use_column_width=True)
+    if uploaded_images:
+        for uploaded_image in uploaded_images:
+            st.image(uploaded_image, caption="Gambar yang Diunggah", width=500, use_column_width=False)
 
-        # Simpan gambar ke folder yang dipilih
-        if st.button("Simpan"):
-            folder_path = get_folder_path(selected_folder)
-            file_extension = uploaded_image.name.split(".")[-1]
-            file_path = os.path.join(folder_path, f"{file_name}.{file_extension}")
-            with open(file_path, "wb") as f:
-                f.write(uploaded_image.read())
-            st.success(f"Gambar berhasil disimpan di folder {selected_folder} dengan nama {file_name}.{file_extension}")
+            if st.button("Simpan"):
+                file_extension = uploaded_image.name.split(".")[-1]
+                image_bytes = uploaded_image.read()
+                koneksi_db.save_image_info(file_name, selected_folder, image_bytes)
+                st.success(f"Gambar berhasil disimpan di folder {selected_folder} dengan nama {file_name}.{file_extension}")
 
-elif selected == "Update dan Delete":
-    st.title("Update dan Delete Citra Kendaraan")
+def handle_database_menu():
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Database Citra Kendaraan</h1>
+        """,
+        unsafe_allow_html=True
+    )    
 
-    # Tampilkan daftar gambar yang dapat diupdate atau dihapus
-    update_delete_folder = st.selectbox("Pilih Folder untuk Update dan Delete", get_folder_names())
-
-    folder_path_for_update_delete = get_folder_path(update_delete_folder)
-    
-    # Menyertakan valid_image_extensions untuk mendapatkan daftar file gambar
+    update_delete_folder = st.selectbox("Pilih Folder untuk Update dan Delete", Utilities.get_folder_names())
     valid_image_extensions = ['.jpg', '.jpeg', '.png']
-    all_image_files = [file for file in os.listdir(folder_path_for_update_delete) if os.path.isfile(os.path.join(folder_path_for_update_delete, file)) and any(file.lower().endswith(ext) for ext in valid_image_extensions)]
+    db_data = koneksi_db.get_image_info(update_delete_folder)
 
-    # Pilihan gambar untuk update atau delete
-    page_number = st.number_input("Pilih Halaman", min_value=1, max_value=(len(all_image_files) // 10) + 1, value=1, step=1)
+    if not db_data:
+        st.warning("Tidak ada data gambar yang ditemukan.")
+    else:
+        st.table(pd.DataFrame(db_data).reset_index(drop=True))
+        action = st.selectbox("Pilih Aksi", ["Update", "Delete"])
 
-    start_index = (page_number - 1) * 10
-    end_index = min(page_number * 10, len(all_image_files))
+        if action == "Update":
+            st.text("Form Update Gambar")
+            selected_image_for_update = st.selectbox("Pilih Gambar untuk Update", db_data["file_name"])
+            new_file_name = st.text_input("Nama File Baru (tanpa ekstensi)", selected_image_for_update)
+            update_button = st.button("Update Gambar")
 
-    table_data = {"Nama File": [file.split(".")[0] for file in all_image_files[start_index:end_index]],
-                  "Format": [file.split(".")[-1] for file in all_image_files[start_index:end_index]]}
+            if update_button:
+                koneksi_db.update_image_info(selected_image_for_update, new_file_name)
+                st.success(f"Gambar {selected_image_for_update} berhasil diupdate menjadi {new_file_name}.jpg")
 
-    # Tampilkan data nama file dan format dalam tabel dengan indeks dimulai dari 1
-    st.table(pd.DataFrame(table_data).reset_index(drop=True))
+        elif action == "Delete":
+            st.text("Form Delete Gambar")
+            selected_image_for_delete = st.selectbox("Pilih Gambar untuk Delete", db_data["file_name"])
+            delete_button = st.button("Hapus Gambar")
 
-    # Pilihan aksi: Update atau Delete
-    action = st.selectbox("Pilih Aksi", ["Update", "Delete"])
+            if delete_button:
+                koneksi_db.delete_image_info(selected_image_for_delete)
+                st.success(f"Gambar {selected_image_for_delete} berhasil dihapus.")
 
-    if action == "Update":
-        st.text("Form Update Gambar")
-        # Tambahkan form atau fungsi update di sini
+def handle_dataset_menu():
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Tampilan Dataset Citra Kendaraan</h1>
+        """,
+        unsafe_allow_html=True
+    )    
 
-        # Pilih gambar untuk diupdate
-        selected_image_for_update = st.selectbox("Pilih Gambar untuk Update", table_data["Nama File"])
-
-        # Form untuk mengupdate nama file
-        new_file_name = st.text_input("Nama File Baru (tanpa ekstensi)", selected_image_for_update)
-
-        # Tampilkan tombol update
-        update_button = st.button("Update Gambar")
-
-        if update_button:
-            # Lakukan pembaruan nama file
-            old_file_path = os.path.join(folder_path_for_update_delete, f"{selected_image_for_update}.jpg")
-            new_file_path = os.path.join(folder_path_for_update_delete, f"{new_file_name}.jpg")
-
-            os.rename(old_file_path, new_file_path)
-            st.success(f"Gambar {selected_image_for_update} berhasil diupdate menjadi {new_file_name}.jpg")
-
-    elif action == "Delete":
-        # Pilihan gambar untuk update atau delete
-        selected_image_for_update_delete = st.selectbox("Pilih Gambar untuk Update atau Delete", table_data["Nama File"])
-
-        # Tampilkan tombol delete
-        delete_button = st.button("Hapus Gambar Terpilih")
-
-        if delete_button:
-            # Hapus gambar jika tombol di tekan
-            os.remove(os.path.join(folder_path_for_update_delete, selected_image_for_update_delete + ".jpg"))
-            st.success(f"Gambar {selected_image_for_update_delete} berhasil dihapus.")
-
-elif selected == "Dataset Plat Kendaraan":
-    st.title("Dataset Plat Kendaraan")
-
-    # Ambil jumlah data pada masing-masing folder
-    folder_paths = {
-        'Train': 'C:/Users/ASUS/OneDrive/Dokumen/Informatika Semester 7/Pengembangan Aplikasi AI/Deteksi_PlatNomorKendaraan/Deteksi Plat Nomor Kendaraan.v2i.voc/train',
-        'Valid': 'C:/Users/ASUS/OneDrive/Dokumen/Informatika Semester 7/Pengembangan Aplikasi AI/Deteksi_PlatNomorKendaraan/Deteksi Plat Nomor Kendaraan.v2i.voc/valid',
-        'Test': 'C:/Users/ASUS/OneDrive/Dokumen/Informatika Semester 7/Pengembangan Aplikasi AI/Deteksi_PlatNomorKendaraan/Deteksi Plat Nomor Kendaraan.v2i.voc/test'
+    folder_names = {
+        'Train': 'Train',
+        'Valid': 'Valid',
+        'Test': 'Test',
+        'Data Baru (belum dilakukan labelling)': 'Data Baru (belum dilakukan labelling)'
     }
+
     image_counts = {}
 
-    # Memilih file dengan ekstensi tertentu (misalnya: jpg, jpeg, png)
-    valid_image_extensions = ['.jpg', '.jpeg', '.png']
+    for folder_name in folder_names.values():
+        query = "SELECT COUNT(*) FROM uploaded_images WHERE folder_name = %s"
+        values = (folder_name,)
 
-    for folder, path in folder_paths.items():
-        image_counts[folder] = len([file for file in os.listdir(path) if os.path.isfile(os.path.join(path, file)) and any(file.lower().endswith(ext) for ext in valid_image_extensions)])
+        connection = koneksi_db.create_connection()
+        cursor = connection.cursor()
+        cursor.execute(query, values)
+        result = cursor.fetchone()
+        cursor.close()
+        koneksi_db.close_connection(connection)
 
-    # Hitung total citra dari semua folder
+        image_counts[folder_name] = result[0] if result else 0
+
     total_images = sum(image_counts.values())
 
-    # Buat DataFrame untuk menampilkan dalam tabel
     image_table = pd.DataFrame(list(image_counts.items()) + [('Total', total_images)], columns=['Folder', 'Jumlah Citra'])
 
-    # Tampilkan dalam bentuk tabel tanpa index
     st.subheader("Jumlah Citra Kendaraan:")
     st.table(image_table.set_index('Folder', drop=True, inplace=False))
 
-    # Selectbox untuk memilih folder
-    selected_folder_for_images = st.selectbox("Pilih Folder untuk Menampilkan Citra", list(folder_paths.keys()))
+    selected_folder_for_images = st.selectbox("Pilih Folder untuk Menampilkan Citra", list(folder_names.values()))
+    selected_image_data = koneksi_db.get_image_data_by_folder(selected_folder_for_images)
 
-    # Tampilkan citra dari folder yang dipilih
-    st.subheader(f"Citra dari Folder {selected_folder_for_images}")
+    if not selected_image_data:
+        st.warning("Tidak ada data gambar yang ditemukan untuk folder yang dipilih.")
+    else:
+        st.subheader(f"Citra dari Data {selected_folder_for_images}")
+        df = pd.DataFrame(selected_image_data, columns=['id', 'file_name', 'folder_name', 'image_data', 'upload_timestamp']).reset_index(drop=True)
+        df = df.drop(['id', 'upload_timestamp'], axis=1)
+        df['Gambar'] = [Image.open(io.BytesIO(img_data)) for img_data in df['image_data']]
+        num_columns = 2
+        num_rows_per_column = len(df) // num_columns
+        columns = st.columns(num_columns)
 
-    # Maksimal 8 citra yang ditampilkan
-    folder_path_for_images = folder_paths[selected_folder_for_images]
-    image_files = [file for file in os.listdir(folder_path_for_images) if os.path.isfile(os.path.join(folder_path_for_images, file)) and any(file.lower().endswith(ext) for ext in valid_image_extensions)]
+        for i in range(num_columns):
+            start_idx = i * num_rows_per_column
+            end_idx = (i + 1) * num_rows_per_column
+            captions = [f"{file_name} - {folder_name}" for file_name, folder_name in zip(df['file_name'][start_idx:end_idx], df['folder_name'][start_idx:end_idx])]
+            columns[i].image(df['Gambar'][start_idx:end_idx].tolist(), caption=captions)
 
-    # Membagi layar menjadi dua kolom
-    col1, col2 = st.columns(2)
-
-    image_width = 200  # Tentukan lebar citra yang diinginkan
-
-    for i, image_file in enumerate(image_files[:10]):
-        image_path = os.path.join(folder_path_for_images, image_file)
-        image = Image.open(image_path)
-
-        # Mengatur ukuran citra
-        image = image.resize((image_width, image_width))
-
-        # Memasukkan citra ke dalam kolom
-        if i % 2 == 0:
-            col1.image(image, use_column_width=True)
-            col1.write(f"{image_file}")
-        else:
-            col2.image(image, use_column_width=True)
-            col2.write(f"{image_file}")
-
-elif selected == "Training":
-    st.title("Training Citra Kendaraan")
+def handle_training_menu():
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Training Citra Kendaraan</h1>
+        """,
+        unsafe_allow_html=True
+    )    
     train_button = st.button("Mulai Training")
 
     if train_button:
-
         animation_url = "https://lottie.host/32647c7a-3af2-46d9-bdd0-c651cd1e6f02/1vQLzP5Syi.json"
-        lottie_data = load_lottie_url(animation_url)
+        lottie_data = Utilities.load_lottie_url(animation_url)
 
         if lottie_data is not None:
             st_lottie(lottie_data, speed=1, width=None, height=None)
 
-        # Panggil fungsi pelatihan dari training.py
         colab_url = "https://colab.research.google.com/drive/1MeXy5l5p0cwm-pM1bA-FmeXJUyfgz9id#scrollTo=kTvDNSILZoN9"
         webbrowser.open_new_tab(colab_url)
 
         st.success("Training telah dimulai di Colab. Silakan beralih ke halaman Google Colab.")
 
-elif selected == "Prediction":
-    st.title("Prediksi Plat Nomor Kendaraan")
+def handle_prediction_menu(deteksi_objek):
+    st.markdown(
+        """
+        <h1 style="text-align: center; color: #007BFF;">Prediksi Plat Kendaraan</h1>
+        """,
+        unsafe_allow_html=True
+    )    
     uploaded_image = st.file_uploader("Pilih gambar...", type=["jpg", "jpeg", "png"])
 
     if uploaded_image is not None:
-        st.image(uploaded_image, caption="Gambar yang Diunggah", use_column_width=True)
+        st.image(uploaded_image, caption="Gambar yang Diunggah", use_column_width=False)
         predict_button = st.button("Lakukan Prediksi")
 
         if predict_button:
-            # Perform prediction
             output_frame, cropped_regions, filtered_texts = deteksi_objek.process_image(uploaded_image)
-            st.image(output_frame, caption="Hasil Prediksi", use_column_width=True)
+            st.image(output_frame, caption="Hasil Prediksi", use_column_width=False)
 
             for i, cropped_region in enumerate(cropped_regions):
-                st.image(cropped_region, caption=f"Citra Preprocessed #{i + 1}", use_column_width=True)
+                st.image(cropped_region, caption=f"Citra Preprocessed #{i + 1}", use_column_width=False)
+                st.subheader(f"Hasil OCR :")
+                st.markdown(f"<p style='font-size:30px;'><b>{filtered_texts[i]}</b></p>", unsafe_allow_html=True)
 
-                # Terapkan OCR pada bagian yang terdeteksi
-                text_result = filtered_texts[i]  # Change to use filtered text
-                st.text(f"Hasil OCR #{i + 1}: {text_result}")
+def handle_menu_selection(menu_id, deteksi_objek):
+    if menu_id == "Home":
+        handle_home_menu()
+    elif menu_id == "Upload Gambar":
+        handle_upload_menu()
+    elif menu_id == "Database":
+        handle_database_menu()
+    elif menu_id == "Dataset Plat Kendaraan":
+        handle_dataset_menu()
+    elif menu_id == "Training":
+        handle_training_menu()
+    elif menu_id == "Prediction":
+        handle_prediction_menu(deteksi_objek)
 
-                array_result = list(text_result)
-                st.write(f"Array hasil OCR #{i+1}: {array_result}")
+def main():
+    setup_page_configuration()
+    menu_id = setup_navigation_bar()
+    handle_menu_selection(menu_id, deteksi_objek)
+
+if __name__ == "__main__":
+    main()
