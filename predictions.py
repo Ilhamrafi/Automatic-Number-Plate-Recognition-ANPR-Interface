@@ -1,8 +1,12 @@
+#predictions.py
 import cv2
 import numpy as np
 import torch
 import easyocr
 import re
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
 
 class DeteksiObjek:
     def __init__(self):
@@ -10,7 +14,7 @@ class DeteksiObjek:
         self.classes = self.model.names
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print("Menggunakan Perangkat: ", self.device)
-        self.reader = easyocr.Reader(['en'], gpu=True)  # Adjust languages and GPU usage as needed
+        self.reader = easyocr.Reader(['en'], gpu=True)
 
     def load_model(self):
         model_path = "best.pt"
@@ -127,4 +131,4 @@ class DeteksiObjek:
         # Filter teks yang diekstraksi
         filtered_texts = [self.filter_text(text) for text in extracted_texts]
 
-        return frame_with_boxes, preprocessed_crops, filtered_texts
+        return frame_with_boxes, preprocessed_crops,filtered_texts
